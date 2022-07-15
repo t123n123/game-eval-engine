@@ -19,7 +19,6 @@ int isEndState( Board board ) {
 	} else return 0;
 }
 
-
 void printBoard(Board board) { 
 	cout << (board.firstToMove ? "First To Move\n" : "Second To Move\n");
 	for(int value : board.stacks) {
@@ -29,25 +28,6 @@ void printBoard(Board board) {
 		cout << "End State\n";
 	}
 	cout << '\n';
-}
-
-
-// random number from 0 to range-1
-int generateRandom(int range) {
-	std::random_device os_seed;
-  	const u32 seed = os_seed();
-
-  	engine generator( seed );
-  	std::uniform_int_distribution< u32 > distribute(0, range-1);	
-	return distribute(generator);
-}
-
-
-Board createBoard(vector<int> stacks, bool firstToMove = true) {
-	Board newBoard; 
-	newBoard.firstToMove = firstToMove;
-	newBoard.stacks = stacks; 
-	return newBoard;
 }
 
 vector<Board> outcomes(Board board) {
@@ -67,12 +47,28 @@ vector<Board> outcomes(Board board) {
 	return outcomes;
 }
 
+// random number from 0 to range-1
+int generateRandom(int range) {
+	std::random_device os_seed;
+  	const u32 seed = os_seed();
+
+  	engine generator( seed );
+  	std::uniform_int_distribution< u32 > distribute(0, range-1);	
+	return distribute(generator);
+}
+
+Board createBoard(vector<int> stacks, bool firstToMove = true) {
+	Board newBoard; 
+	newBoard.firstToMove = firstToMove;
+	newBoard.stacks = stacks; 
+	return newBoard;
+}
+
 Board randomMove(Board board) { 
 	vector<Board> nextMoves = outcomes(board); 
 	int moveIndex = generateRandom(nextMoves.size());
 	return nextMoves[moveIndex];	
 }
-
 
 // return 1 if first won, -1 if second 
 int randomGameOutcome(Board board, bool print = false) {
@@ -84,14 +80,13 @@ int randomGameOutcome(Board board, bool print = false) {
 	return (board.firstToMove ? -1 : 1);
 }
 
-
 // returns (value, complexity) of the board
 // value is in the range (min_value, max_value), complexity is in the range (0, max_complexity)
 // complexity represents how hard the position is to evaluate, prioritize good states with low complexity 
 // and bad states with high complexity
 // (hard-to-lose good positions, easy-to-comeback bad positions) 
 // this should make the engine prefer moves that keep it alive for more turns
-pair<int,int> evaluateBoard( Board board ) {
+pair<int,int> evaluateBoard(Board board) {
 	int end = isEndState(board); 
 	if(end != 0) {
 		return make_pair(end * 1000, 0);
@@ -99,8 +94,40 @@ pair<int,int> evaluateBoard( Board board ) {
 	return make_pair(0,0);
 }
 
+int randEval(Board board, int iter, bool print = false) {
+	int wins = 0, loses = 0;
+	for(int i = 1; i <= iter; i++) {
+		int result = randomGameOutcome(board);
+		result == 1 ? wins++ : loses++;
+	}
+	cout << "Evaluated board: \n";
+	printBoard(board);
+	cout << "Got " << wins << " wins and " << loses << " loses.\n"; 
 
+	return wins - loses;
+}
 
+Board randEvalMove(Board board, int iter, bool print = false) {
+	vector<Board> boards = outcomes(board);
+	vector<int> evals;
+	for(Board boardNew : boards) {
+		evals.push_back(randEval(boardNew, iter, print));
+	}
+	Board bestBoard = boards[0];
+	int bestValue = evals[0];
+	for(int i = 0; i <= iter; i++) {
+		if((bestValue - evals[i]) * (board.firstToMove ? 1 : -1) > 0) {
+			bestValue = evals[i];
+			bestBoard = boards[i];
+		}
+	}
+	if(print) {
+		cout << "Best board: \n";
+		printBoard(board);
+		cout << "With value: " << bestValue << '\n';	
+	}
+	return bestBoard;
+}
 
 int main() { 
 	int n; 
@@ -113,5 +140,5 @@ int main() {
 	
 	}
 	Board initBoard = createBoard(stacks);
-	cout << randomGameOutcome(initBoard, true) << '\n';
+	randEvalMove(initBoard, 10, true);
 }
